@@ -1,9 +1,12 @@
 // Offline support: app shell + campsite data are precached; map tiles you have
 // viewed are cached as you browse (so pan/zoom your trip area on Wi-Fi first).
-const VERSION = 'v2';
+// Our own files are fetched fresh whenever you are online (so updates show up
+// on the next open) and fall back to the saved copy when you are not.
+const VERSION = 'v4';
 const SHELL = 'adk-shell-' + VERSION;
 const TILES = 'adk-tiles-v1';
 const MAX_TILES = 4000;
+const NET_WAIT_MS = 3000; // on a weak signal, give up waiting after this long and use the saved copy
 
 const SHELL_FILES = [
   './',
@@ -25,7 +28,10 @@ const TILE_HOSTS = ['tile.openstreetmap.org', 'tile.opentopomap.org'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting())
+    caches
+      .open(SHELL)
+      .then((c) => c.addAll(SHELL_FILES.map((f) => new Request(f, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -73,26 +79,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Our own files: serve from cache, refresh in the background.
+  // Our own files: network first (always the newest copy), saved copy as the fallback.
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.open(SHELL).then(async (cache) => {
+      (async () => {
+        const cache = await caches.open(SHELL);
+        const net = fetch(req, { cache: 'no-cache' }).then((res) => {
+          if (res && res.ok) cache.put(req, res.clone());
+          return res;
+        });
+        const quiet = net.catch(() => null);
+        const timer = new Promise((resolve) => setTimeout(() => resolve(null), NET_WAIT_MS));
+        const first = await Promise.race([quiet, timer]);
+        if (first && first.ok) return first;
         const hit = await cache.match(req, { ignoreSearch: true });
-        const refresh = fetch(req)
-          .then((res) => {
-            if (res && res.ok) cache.put(req, res.clone());
-            return res;
-          })
-          .catch(() => null);
-        if (hit) {
-          event.waitUntil(refresh);
-          return hit;
+        if (hit) return hit;
+        const late = first || (await quiet);
+        if (late) return late;
+        if (req.mode === 'navigate') {
+          const index = await cache.match('index.html');
+          if (index) return index;
         }
-        const res = await refresh;
-        if (res) return res;
-        if (req.mode === 'navigate') return (await cache.match('index.html')) || Response.error();
         return Response.error();
-      })
+      })()
     );
   }
 });

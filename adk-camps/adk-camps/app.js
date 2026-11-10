@@ -13,11 +13,17 @@ const GROUPS = {
   other:  { label: 'State forests & conservation easements', note: 'Mostly outside the park boundary. Rules differ.' },
 };
 const ACCESS = {
-  car:  { label: 'Drive-up', note: 'Judged drive-up from the site name or area, not measured on a map. Dirt roads can be rough for motorcycles and low cars, and many close for the season. Check conditions first.' },
-  unk:  { label: 'Access not confirmed', note: 'The source file does not say how to reach this site. It could be beside a road, a short walk, a long hike or a paddle.' },
-  hike: { label: 'Hike or paddle in', note: 'In a wilderness-type area where motor vehicles are not allowed. Expect to hike or paddle.' },
+  car:  { label: 'Drive-up', note: 'Within about 100 m of a road or track on OpenStreetMap.' },
+  near: { label: 'Short walk', note: 'About 100 to 400 m from the nearest road or track.' },
+  hike: { label: 'Hike or paddle in', note: 'No road or track within 400 m on OpenStreetMap.' },
 };
-const DEFAULT_ACCESS = ['car'];
+const DEFAULT_ACCESS = ['car', 'near'];   // hike-in sites hidden unless the user turns them on
+function roadLine(r) {
+  if (r.d == null) return 'No road or track found within 500 m on OpenStreetMap.';
+  const m = r.d < 10 ? 'at the roadside' : `about ${r.d} m from`;
+  const what = [r.rt, r.rn].filter(Boolean).join(': ');
+  return r.d < 10 ? `${what || 'Road'} runs right by this site.` : `${what || 'Road'}, ${m} the site.`;
+}
 const DEC_URL = 'https://dec.ny.gov/things-to-do/camping';
 const LIST_PAGE = 120;
 
@@ -101,7 +107,7 @@ const state = {
   vis: [],
   kinds: new Set(store.get('kinds', Object.keys(KIND))),
   groups: new Set(store.get('groups', ['core'])),
-  access: new Set(store.get('access', DEFAULT_ACCESS)),
+  access: new Set(store.get('access3', DEFAULT_ACCESS)),
   unit: '',
   q: '',
   starOnly: false,
@@ -212,7 +218,7 @@ function updateBadge() {
   let n = 0;
   if (state.kinds.size < Object.keys(KIND).length) n++;
   if (!(state.groups.size === 1 && state.groups.has('core'))) n++;
-  if (!(state.access.size === 1 && state.access.has('car'))) n++;
+  if (state.access.size !== DEFAULT_ACCESS.length || DEFAULT_ACCESS.some((a) => !state.access.has(a))) n++;
   if (state.unit) n++;
   if (state.starOnly) n++;
   const b = $('#filter-badge');
@@ -252,8 +258,8 @@ function renderSheet() {
   const r = state.sel;
   if (!r) return;
   const k = KIND[r.k];
-  const mapsUrl = `https://maps.apple.com/?ll=${r.lat},${r.lon}&q=${encodeURIComponent(r.n)}`;
-  const dirUrl = `https://maps.apple.com/?daddr=${r.lat},${r.lon}&dirflg=d`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}`;
+  const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lon}&travelmode=driving`;
   const saved = stars.has(r.id);
   sheet.textContent = '';
   const parts = [
@@ -273,10 +279,12 @@ function renderSheet() {
       el('button', { class: 'btn primary', text: 'Copy coordinates', onclick: async () => toast((await copyText(dd(r))) ? 'Coordinates copied' : 'Press and hold the numbers to copy') }),
       el('button', { class: 'btn', text: saved ? '★ Saved' : '☆ Save', onclick: () => toggleStar(r) })),
     el('div', { class: 'btnrow' },
-      el('a', { class: 'btn', href: mapsUrl, target: '_blank', rel: 'noopener', text: 'Open in Maps' }),
+      el('a', { class: 'btn', href: mapsUrl, target: '_blank', rel: 'noopener', text: 'Open in Google Maps' }),
       el('a', { class: 'btn', href: dirUrl, target: '_blank', rel: 'noopener', text: 'Directions' }),
       navigator.share ? el('button', { class: 'btn', text: 'Share', onclick: () => navigator.share({ title: r.n, text: `${r.n} (${r.u}): ${dd(r)}`, url: mapsUrl }).catch(() => {}) }) : null),
-    r.a === 'car' ? el('p', { class: 'fine', text: ACCESS.car.note }) : el('div', { class: 'note', text: ACCESS[r.a].note }),
+    el('div', { class: r.a === 'hike' ? 'note' : 'fine' }, roadLine(r)),
+    r.rs ? el('div', { class: 'note', text: 'That road is tagged as seasonal or restricted on the map. It may be closed or gated.' }) : null,
+    el('p', { class: 'fine', text: 'Measured from OpenStreetMap, not checked on the ground. Dirt tracks can be rough for motorcycles and low cars, and many roads close for the season.' }),
     r.g !== 'core' ? el('div', { class: 'note', text: GROUPS[r.g].note }) : null,
     el('p', { class: 'fine' }, 'Check ', el('a', { href: DEC_URL, target: '_blank', rel: 'noopener', text: 'current DEC rules' }),
       ' and look for the yellow “Camp Here” disc. Source data can be incomplete or outdated.'),
@@ -375,7 +383,7 @@ function buildFilterUI() {
   sel.addEventListener('change', () => { state.unit = sel.value; applyFilters(); });
   $('#f-stars').addEventListener('change', (e) => { state.starOnly = e.target.checked; applyFilters(); });
 }
-function persistFilters() { store.set('kinds', [...state.kinds]); store.set('groups', [...state.groups]); store.set('access', [...state.access]); }
+function persistFilters() { store.set('kinds', [...state.kinds]); store.set('groups', [...state.groups]); store.set('access3', [...state.access]); }
 $('#btn-filters').addEventListener('click', () => { $('#filters').hidden = false; });
 $('#filters-done').addEventListener('click', () => { $('#filters').hidden = true; });
 $('#filters').addEventListener('click', (e) => { if (e.target.id === 'filters') $('#filters').hidden = true; });
@@ -403,7 +411,7 @@ function fillAbout() {
     `${core.length.toLocaleString()} designated sites in ${units} Forest Preserve areas ` +
     `(${by('camp').toLocaleString()} campsites, ${by('leanto').toLocaleString()} lean-tos, ${by('tent').toLocaleString()} tent sites), ` +
     `plus ${c('review').length} to review and ${c('other').length} in state forests and easements. ` +
-    `By access: ${acc('car')} drive-up, ${acc('unk').toLocaleString()} not confirmed, ${acc('hike').toLocaleString()} hike or paddle in.`;
+    `By access: ${acc('car').toLocaleString()} drive-up, ${acc('near').toLocaleString()} short walk, ${acc('hike').toLocaleString()} hike or paddle in.`;
 }
 
 /* ---------- location ---------- */
