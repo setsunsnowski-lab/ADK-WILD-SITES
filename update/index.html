@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Adirondack Free Camps</title>
+<meta name="theme-color" content="#1f3d2b">
+<meta name="description" content="Designated free primitive campsites and lean-tos in the Adirondack Forest Preserve, with GPS coordinates.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ADK Camps">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="top">
+  <div class="searchwrap">
+    <input id="q" type="search" placeholder="Search name, area, town…" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search campsites">
+  </div>
+  <button id="btn-filters" class="iconbtn" aria-label="Filters">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    <span id="filter-badge" class="badge" hidden></span>
+  </button>
+</header>
+
+<main>
+  <section id="view-map" class="view">
+    <div id="map" aria-label="Map of campsites"></div>
+    <div id="count" class="pill" aria-live="polite"></div>
+    <div id="status" class="pill warn" hidden></div>
+    <div id="me" class="pill me" hidden role="button" tabindex="0" title="Tap to copy your coordinates"></div>
+    <div id="mapctl">
+      <button id="btn-locate" class="fab" aria-label="Show my location" title="My location">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="btn-base" class="fab" aria-label="Switch map style" title="Map style">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3 2 8.5 12 14l10-5.5zM2 12.5 12 18l10-5.5M2 16.5 12 22l10-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="btn-fit" class="fab" aria-label="Zoom to all sites" title="Show all">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section id="view-list" class="view scroll" hidden>
+    <div class="listhead">
+      <strong id="list-title">Sites</strong>
+      <span id="list-sub" class="muted"></span>
+    </div>
+    <ul id="rows" class="rows"></ul>
+    <button id="more" class="btn wide" hidden>Show more</button>
+  </section>
+
+  <section id="view-info" class="view scroll" hidden>
+    <article class="prose">
+      <h1>Adirondack Free Camps</h1>
+      <p class="lead">Designated free campsites, lean-tos and tent sites on New York State Forest Preserve land in the Adirondack Park, with GPS coordinates. No account, no ads, works without cell service.</p>
+
+      <h2>Reaching a site by car or motorcycle</h2>
+      <p>All sites are shown by default. In Filters, <strong>How you get there</strong> can narrow the map to sites judged <strong>drive-up</strong>: roadside sites and the Moose River Plains camping area. That is judged from each site&rsquo;s name and area in the DEC file, not measured on a map, so it misses some roadside sites (they show as <strong>access not confirmed</strong>). Wilderness-type areas, where motor vehicles are not allowed, are marked <strong>hike or paddle in</strong>. Dirt roads can be rough for motorcycles and low cars, and many close for the season.</p>
+
+      <h2>Before you rely on a site</h2>
+      <ul>
+        <li><strong>This list is incomplete and can be out of date.</strong> It comes from a NYS DEC export. Hikers report that official data misses many sites (some popular areas have far more than are listed), and closed sites can linger. Treat every pin as a lead to verify, not a guarantee.</li>
+        <li>Designated sites are marked on the ground, usually with a yellow “Camp Here” disc, and are first-come, first-served.</li>
+        <li>Groups of 10+ and stays of more than 3 nights in one place generally need a permit from the local DEC forest ranger. Bear canisters are required in the Eastern High Peaks Wilderness and a good idea everywhere.</li>
+        <li>Access roads are often closed seasonally, especially late fall to spring. Check conditions first.</li>
+        <li>Rules change and differ by area. Confirm on the <a href="https://dec.ny.gov/things-to-do/camping" target="_blank" rel="noopener">DEC camping page</a> before you go.</li>
+      </ul>
+
+      <h2>Use it offline</h2>
+      <ol>
+        <li>Open this page in Safari on Wi-Fi, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. Launch it from the new icon.</li>
+        <li>The campsite list, coordinates and distances are saved on your phone automatically.</li>
+        <li>Map pictures are only saved for areas you have looked at, so before leaving, pan and zoom around your trip area (including the zoom levels you will want) while online.</li>
+        <li>Your location uses the phone’s GPS and works with no signal. Distances are straight-line, not trail or road distance.</li>
+      </ol>
+
+      <h2>What the colours mean</h2>
+      <ul class="legend">
+        <li><i class="dot" style="background:#2f8f55"></i> Campsite</li>
+        <li><i class="dot" style="background:#e08a2e"></i> Lean-to (shelter)</li>
+        <li><i class="dot" style="background:#3b82d6"></i> Tent site</li>
+        <li><i class="dot ring"></i> Faded with a dashed edge: needs review (turn on in Filters)</li>
+      </ul>
+
+      <h2>About the data</h2>
+      <p id="about-data"></p>
+      <p class="muted">Source: New York State Department of Environmental Conservation (campsite and lean-to locations). The source has no fee field: sites are treated as free because they are designated sites on Forest Preserve land and DEC pay campgrounds were removed. Some areas may still require a permit. Sites in state forests and conservation easements, and rows with no listed land unit, are hidden by default. Map: © OpenStreetMap contributors; topographic style © OpenTopoMap (CC-BY-SA). Not an official DEC product.</p>
+    </article>
+  </section>
+</main>
+
+<div id="sheet" class="sheet" hidden role="dialog" aria-label="Site details"></div>
+
+<div id="filters" class="modal" hidden role="dialog" aria-label="Filters">
+  <div class="modal-card">
+    <div class="modal-head">
+      <strong>Filters</strong>
+      <button id="filters-reset" class="link">Reset</button>
+    </div>
+    <div class="modal-body">
+      <h3>How you get there</h3>
+      <div id="f-access" class="checks"></div>
+      <h3>Type</h3>
+      <div id="f-kinds" class="checks"></div>
+      <h3>Which sites</h3>
+      <div id="f-groups" class="checks"></div>
+      <h3>Area</h3>
+      <select id="f-unit" aria-label="Filter by area"></select>
+      <label class="check"><input type="checkbox" id="f-stars"> <span>Saved ★ only</span></label>
+    </div>
+    <button id="filters-done" class="btn primary wide">Show results</button>
+  </div>
+</div>
+
+<nav id="tabs">
+  <button data-tab="map" class="on"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Map</span></button>
+  <button data-tab="list"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>List</span></button>
+  <button data-tab="info"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6M12 7.5h.01" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Info</span></button>
+</nav>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
